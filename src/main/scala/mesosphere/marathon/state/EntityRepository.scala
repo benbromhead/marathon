@@ -1,6 +1,6 @@
 package mesosphere.marathon.state
 
-import mesosphere.marathon.StorageException
+import mesosphere.marathon.StoreCommandFailedException
 import scala.concurrent.Future
 
 trait EntityRepository[T <: MarathonState[_, T]] extends StateMetrics {
@@ -32,7 +32,7 @@ trait EntityRepository[T <: MarathonState[_, T]] extends StateMetrics {
     this.store.names().map { names =>
       names.collect {
         case name: String if !name.contains(ID_DELIMITER) => name
-      }.toSeq
+      }
     }
   }
 
@@ -56,7 +56,7 @@ trait EntityRepository[T <: MarathonState[_, T]] extends StateMetrics {
       names.collect {
         case name: String if name.startsWith(prefix) =>
           Timestamp(name.substring(prefix.length))
-      }.toSeq.sorted.reverse
+      }.sorted.reverse
     }
   }
 
@@ -88,6 +88,6 @@ trait EntityRepository[T <: MarathonState[_, T]] extends StateMetrics {
       alias <- this.store.store(id, t) if alias.isDefined
       result <- this.store.store(id + ID_DELIMITER + version, t)
       limit <- limitNumberOfVersions(id)
-    } yield result.getOrElse(throw new StorageException(s"Can not persist $t"))
+    } yield result.getOrElse(throw new StoreCommandFailedException(s"Can not persist $t"))
   }
 }

@@ -3,7 +3,7 @@ package mesosphere.marathon
 import javax.inject.Inject
 
 import mesosphere.chaos.http.HttpConf
-import mesosphere.mesos.util.FrameworkIdUtil
+import mesosphere.util.state.FrameworkIdUtil
 import org.apache.mesos.SchedulerDriver
 
 trait SchedulerDriverFactory {
@@ -24,7 +24,7 @@ class MesosSchedulerDriverFactory @Inject() (
     */
   override def createDriver(): SchedulerDriver = {
     import mesosphere.util.ThreadPoolContext.context
-    implicit val zkTimeout = config.zkFutureTimeout
+    implicit val zkTimeout = config.zkTimeoutDuration
     val frameworkId = frameworkIdUtil.fetch
     val driver = MarathonSchedulerDriver.newDriver(config, httpConfig, scheduler, frameworkId)
     holder.driver = Some(driver)

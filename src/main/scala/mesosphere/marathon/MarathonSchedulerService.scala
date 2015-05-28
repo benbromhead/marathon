@@ -3,9 +3,9 @@ package mesosphere.marathon
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.{ Timer, TimerTask }
-import javax.inject.{ Provider, Inject, Named }
+import javax.inject.{ Inject, Named }
 
-import akka.actor.{ ActorRef, ActorSystem, Props }
+import akka.actor.{ ActorRef, ActorSystem }
 import akka.pattern.{ after, ask }
 import akka.util.Timeout
 import com.google.common.util.concurrent.AbstractExecutionThreadService
@@ -13,7 +13,6 @@ import com.twitter.common.base.ExceptionalCommand
 import com.twitter.common.zookeeper.Candidate
 import com.twitter.common.zookeeper.Candidate.Leader
 import com.twitter.common.zookeeper.Group.JoinException
-import mesosphere.chaos.http.HttpConf
 import mesosphere.marathon.MarathonSchedulerActor._
 import mesosphere.marathon.Protos.MarathonTask
 import mesosphere.marathon.health.HealthCheckManager
@@ -21,15 +20,15 @@ import mesosphere.marathon.state.{ AppDefinition, AppRepository, Migration, Path
 import mesosphere.marathon.tasks.TaskTracker
 import mesosphere.marathon.upgrade.DeploymentManager.{ CancelDeployment, DeploymentStepInfo }
 import mesosphere.marathon.upgrade.DeploymentPlan
-import mesosphere.mesos.util.FrameworkIdUtil
 import mesosphere.util.PromiseActor
+import mesosphere.util.state.FrameworkIdUtil
 import org.apache.log4j.Logger
 import org.apache.mesos.Protos.FrameworkID
 import org.apache.mesos.SchedulerDriver
 
 import scala.collection.immutable.Seq
 import scala.concurrent.duration.{ MILLISECONDS, _ }
-import scala.concurrent.{ TimeoutException, Await, Future, Promise }
+import scala.concurrent.{ Await, Future, TimeoutException }
 import scala.util.control.NonFatal
 import scala.util.{ Failure, Success }
 
@@ -51,7 +50,7 @@ class MarathonSchedulerService @Inject() (
 
   import mesosphere.util.ThreadPoolContext.context
 
-  implicit val zkTimeout = config.zkFutureTimeout
+  implicit val zkTimeout = config.zkTimeoutDuration
 
   val latch = new CountDownLatch(1)
 
@@ -261,7 +260,7 @@ class MarathonSchedulerService @Inject() (
       electLeadership(Some(abdicateCmd))
 
       // We successfully took over leadership. Time to reset backoff
-      resetOfferLeadershipBackOff
+      resetOfferLeadershipBackOff()
     }
     catch {
       case NonFatal(e) => // catch Scala and Java exceptions

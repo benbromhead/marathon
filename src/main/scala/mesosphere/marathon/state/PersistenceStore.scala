@@ -4,16 +4,17 @@ import scala.concurrent.Future
 
 trait PersistenceStore[T] {
 
+  type Read = () => T //returns deserialized T value.
+  type Update = Read => T //Update function Gets an Read and returns the (modified) T
+
   def fetch(key: String): Future[Option[T]]
 
   def store(key: String, value: T): Future[Option[T]] = modify(key)(_ => value)
 
-  // () => T: returns deserialized T value.
-  // user can avoid unnecessary deserialization calls.
-  def modify(key: String)(f: (() => T) => T): Future[Option[T]]
+  def modify(key: String)(update: Update): Future[Option[T]]
 
   def expunge(key: String): Future[Boolean]
 
-  def names(): Future[Iterator[String]]
+  def names(): Future[Seq[String]]
 
 }

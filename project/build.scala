@@ -173,6 +173,7 @@ object Dependencies {
     scallop % "compile",
     playJson % "compile",
     jsonSchemaValidator % "compile",
+    twitterZk % "compile",
 
     // test
     Test.scalatest % "test",
@@ -190,6 +191,7 @@ object Dependency {
     val Akka = "2.3.9"
     val Spray = "1.3.2"
     val TwitterCommons = "0.0.76"
+    val TwitterZk = "6.24.0"
     val Jersey = "1.18.1"
     val JettyEventSource = "1.0.0"
     val JodaTime = "2.3"
@@ -230,6 +232,7 @@ object Dependency {
   val beanUtils = "commons-beanutils" % "commons-beanutils" % "1.9.2"
   val scallop = "org.rogach" %% "scallop" % V.Scallop
   val jsonSchemaValidator = "com.github.fge" % "json-schema-validator" % V.JsonSchemaValidator
+  val twitterZk = "com.twitter" %% "util-zk" % V.TwitterZk
 
   object Test {
     val scalatest = "org.scalatest" %% "scalatest" % V.ScalaTest

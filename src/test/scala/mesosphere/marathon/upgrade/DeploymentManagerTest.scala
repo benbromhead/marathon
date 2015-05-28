@@ -2,7 +2,6 @@ package mesosphere.marathon.upgrade
 
 import akka.actor.{ ActorRef, ActorSystem, Props }
 import akka.event.EventStream
-import akka.pattern.ask
 import akka.testkit.TestActor.{ AutoPilot, NoAutoPilot }
 import akka.testkit.{ ImplicitSender, TestActorRef, TestKit, TestProbe }
 import akka.util.Timeout
@@ -13,11 +12,11 @@ import mesosphere.marathon.state.PathId._
 import mesosphere.marathon.state.{ AppDefinition, AppRepository, Group, MarathonStore }
 import mesosphere.marathon.tasks.{ TaskQueue, TaskTracker }
 import mesosphere.marathon.upgrade.DeploymentActor.Cancel
-import mesosphere.marathon.upgrade.DeploymentManager.{ DeploymentFailed, CancelDeployment, PerformDeployment }
-import mesosphere.marathon.{ DeploymentCanceledException, MarathonConf, SchedulerActions }
-import org.rogach.scallop.ScallopConf
+import mesosphere.marathon.upgrade.DeploymentManager.{ CancelDeployment, DeploymentFailed, PerformDeployment }
+import mesosphere.marathon.{ MarathonConf, SchedulerActions }
+import mesosphere.util.state.memory.InMemoryStore
 import org.apache.mesos.SchedulerDriver
-import org.apache.mesos.state.InMemoryState
+import org.rogach.scallop.ScallopConf
 import org.scalatest.mock.MockitoSugar
 import org.scalatest.{ BeforeAndAfter, BeforeAndAfterAll, FunSuiteLike, Matchers }
 
@@ -56,11 +55,11 @@ class DeploymentManagerTest
     config = new ScallopConf(Seq("--master", "foo")) with MarathonConf
     config.afterInit()
     registry = new com.codahale.metrics.MetricRegistry
-    taskTracker = new TaskTracker(new InMemoryState, config, registry)
+    taskTracker = new TaskTracker(new InMemoryStore, config, registry)
     scheduler = mock[SchedulerActions]
     storage = mock[StorageProvider]
     appRepo = new AppRepository(
-      new MarathonStore[AppDefinition](config, new InMemoryState, registry, () => AppDefinition()),
+      new MarathonStore[AppDefinition](config, new InMemoryStore, registry, () => AppDefinition()),
       None,
       registry
     )

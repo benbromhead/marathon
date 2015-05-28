@@ -3,27 +3,20 @@ package mesosphere.marathon.state
 import com.codahale.metrics.MetricRegistry.name
 import com.codahale.metrics.{ Histogram, MetricRegistry }
 import com.google.protobuf.InvalidProtocolBufferException
-import mesosphere.marathon.{ MarathonConf, StorageException }
-import mesosphere.util.{ BackToTheFuture, LockManager, ThreadPoolContext }
-import org.apache.mesos.state.State
+import mesosphere.marathon.MarathonConf
+import mesosphere.util.state.PersistentStore
+import mesosphere.util.{ LockManager, ThreadPoolContext }
 import org.slf4j.LoggerFactory
 
-import scala.collection.JavaConverters._
 import scala.concurrent.Future
-import scala.concurrent.duration._
-import scala.util.control.NonFatal
 
 class MarathonStore[S <: MarathonState[_, S]](
-  conf: MarathonConf,
-  state: State,
-  registry: MetricRegistry,
-  newState: () => S,
-  prefix: String = "app:")(
-    implicit val timeout: BackToTheFuture.Timeout = BackToTheFuture.Timeout(Duration(conf.marathonStoreTimeout(),
-      MILLISECONDS)))
-    extends PersistenceStore[S] {
+    conf: MarathonConf,
+    store: PersistentStore,
+    registry: MetricRegistry,
+    newState: () => S,
+    prefix: String = "app:") extends PersistenceStore[S] {
 
-  import BackToTheFuture.futureToFutureOption
   import ThreadPoolContext.context
 
   private[this] val log = LoggerFactory.getLogger(getClass)
@@ -35,21 +28,18 @@ class MarathonStore[S <: MarathonState[_, S]](
   protected[this] val bytesWritten: Histogram = registry.histogram(name(getClass, contentClassName, "write-data-size"))
 
   def fetch(key: String): Future[Option[S]] = {
-    state.fetch(prefix + key) map {
-      case Some(variable) =>
-        bytesRead.update(variable.value.length)
-        try {
-          Some(stateFromBytes(variable.value))
-        }
-        catch {
-          case e: InvalidProtocolBufferException =>
-            if (variable.value.nonEmpty) {
-              log.error(s"Failed to read $key, could not deserialize data (${variable.value.length} bytes).", e)
-            }
-            None
-        }
-      case None =>
-        throw new StorageException(s"Failed to read $key, does not exist, should have been created automatically.")
+    store.load(prefix + key) map { entity =>
+      bytesRead.update(entity.bytes.length)
+      try {
+        Some(stateFromBytes(entity.bytes))
+      }
+      catch {
+        case e: InvalidProtocolBufferException =>
+          if (entity.bytes.nonEmpty) {
+            log.error(s"Failed to read $key, could not deserialize data (${entity.bytes.length} bytes).", e)
+          }
+          None
+      }
     }
   }
 
@@ -57,31 +47,25 @@ class MarathonStore[S <: MarathonState[_, S]](
     val lock = locks.get(key)
     lock.acquire()
 
-    val res: Future[Option[S]] = state.fetch(prefix + key) flatMap {
-      case Some(variable) =>
-        bytesRead.update(variable.value.length)
-        val deserialize = { () =>
-          try {
-            stateFromBytes(variable.value)
-          }
-          catch {
-            case e: InvalidProtocolBufferException =>
-              if (variable.value.nonEmpty) {
-                log.error(s"Failed to read $key, could not deserialize data (${variable.value.length} bytes).", e)
-              }
-              newState()
-          }
+    val res: Future[Option[S]] = store.load(prefix + key) flatMap { entity =>
+      bytesRead.update(entity.bytes.length)
+      val deserialize = { () =>
+        try {
+          stateFromBytes(entity.bytes)
         }
-        val newValue: S = f(deserialize)
-        state.store(variable.mutate(newValue.toProtoByteArray)) map {
-          case Some(newVar) =>
-            bytesWritten.update(newVar.value.size)
-            Some(stateFromBytes(newVar.value))
-          case None =>
-            throw new StorageException(s"Failed to store $key")
+        catch {
+          case e: InvalidProtocolBufferException =>
+            if (entity.bytes.nonEmpty) {
+              log.error(s"Failed to read $key, could not deserialize data (${entity.bytes.length} bytes).", e)
+            }
+            newState()
         }
-      case None =>
-        throw new StorageException(s"Failed to read $key, does not exist, should have been created automatically.")
+      }
+      val newValue: S = f(deserialize)
+      store.save(entity.mutate(newValue.toProtoByteArray)) map { newVar =>
+        bytesWritten.update(newVar.bytes.length)
+        Some(stateFromBytes(newVar.bytes))
+      }
     }
 
     res onComplete { _ =>
@@ -95,16 +79,7 @@ class MarathonStore[S <: MarathonState[_, S]](
     val lock = locks.get(key)
     lock.acquire()
 
-    val res = state.fetch(prefix + key) flatMap {
-      case Some(variable) =>
-        bytesRead.update(Option(variable.value).map(_.length).getOrElse(0))
-        state.expunge(variable) map {
-          case Some(b) => b.booleanValue()
-          case None    => throw new StorageException(s"Failed to expunge $key")
-        }
-
-      case None => throw new StorageException(s"Failed to read $key")
-    }
+    val res = store.delete(prefix + key) map { _ => true }
 
     res onComplete { _ =>
       lock.release()
@@ -113,23 +88,11 @@ class MarathonStore[S <: MarathonState[_, S]](
     res
   }
 
-  def names(): Future[Iterator[String]] = {
-    BackToTheFuture.futureToFuture(state.names()).map {
-      _.asScala.collect {
-        case name if name startsWith prefix =>
-          name.replaceFirst(prefix, "")
+  def names(): Future[Seq[String]] = {
+    store.allIds().map {
+      _.collect {
+        case name if name startsWith prefix => name.replaceFirst(prefix, "")
       }
-    }.recover {
-      case NonFatal(e) =>
-        // TODO: Currently this code path is taken when the zookeeper path does not exist yet. It would be nice
-        // to not log this as a warning.
-        //
-        // Unfortunately, this results in a NullPointerException in `throw e.getCause()` in BackToTheFuture because
-        // the native mesos code returns an ExecutionException without cause. Therefore, we cannot robustly
-        // differentiate between exceptions which are "normal" and exceptions which indicate real errors
-        // and we have to log them all.
-        log.warn(s"exception while calling $getClass.names() for prefix $prefix", e)
-        Iterator.empty
     }
   }
 

@@ -2,16 +2,13 @@ package mesosphere.marathon.event.http
 
 import akka.actor.{ Actor, ActorLogging }
 import akka.pattern.pipe
-import mesosphere.marathon.event.{
-  MarathonSubscriptionEvent,
-  Unsubscribe,
-  Subscribe
-}
 import mesosphere.marathon.event.http.SubscribersKeeperActor._
-import mesosphere.marathon.state.MarathonStore
+import mesosphere.marathon.event.{ MarathonSubscriptionEvent, Subscribe, Unsubscribe }
+import mesosphere.marathon.state.PersistenceStore
+
 import scala.concurrent.Future
 
-class SubscribersKeeperActor(val store: MarathonStore[EventSubscribers]) extends Actor with ActorLogging {
+class SubscribersKeeperActor(val store: PersistenceStore[EventSubscribers]) extends Actor with ActorLogging {
 
   implicit val ec = HttpEventModule.executionContext
 

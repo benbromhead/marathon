@@ -12,7 +12,7 @@ import mesosphere.marathon.health.HealthCheckManager
 import mesosphere.marathon.state.PathId._
 import mesosphere.marathon.state.{ AppDefinition, AppRepository, Timestamp }
 import mesosphere.marathon.tasks._
-import mesosphere.mesos.util.FrameworkIdUtil
+import mesosphere.util.state.FrameworkIdUtil
 import org.apache.mesos.Protos._
 import org.apache.mesos.SchedulerDriver
 import org.mockito.ArgumentCaptor

@@ -1,31 +1,28 @@
 package mesosphere.marathon
 
-import java.util.{ TimerTask, Timer }
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.{ Timer, TimerTask }
 
 import akka.actor.{ ActorRef, ActorSystem }
 import akka.testkit.{ TestKit, TestProbe }
-import com.google.inject.Provider
 import com.twitter.common.base.ExceptionalCommand
-import com.twitter.common.zookeeper.{ Group, Candidate }
 import com.twitter.common.zookeeper.Group.JoinException
+import com.twitter.common.zookeeper.{ Candidate, Group }
 import mesosphere.chaos.http.HttpConf
 import mesosphere.marathon.Protos.StorageVersion
 import mesosphere.marathon.health.HealthCheckManager
 import mesosphere.marathon.state.{ AppRepository, Migration }
 import mesosphere.marathon.tasks.TaskTracker
-import mesosphere.mesos.util.FrameworkIdUtil
-import mesosphere.util.BackToTheFuture.Timeout
-import org.apache.mesos.SchedulerDriver
-import org.apache.mesos.{ Protos => mesos }
-import org.apache.mesos.state.InMemoryState
+import mesosphere.util.state.FrameworkIdUtil
+import mesosphere.util.state.memory.InMemoryStore
+import org.apache.mesos.{ Protos => mesos, SchedulerDriver }
 import org.mockito.Matchers.{ any, eq => mockEq }
 import org.mockito.Mockito
 import org.mockito.Mockito.{ times, verify, when }
 import org.mockito.invocation.InvocationOnMock
 import org.mockito.stubbing.Answer
 import org.rogach.scallop.ScallopOption
-import org.scalatest.{ Matchers, BeforeAndAfterAll }
+import org.scalatest.{ BeforeAndAfterAll, Matchers }
 
 import scala.concurrent.duration._
 
@@ -44,7 +41,7 @@ object MarathonSchedulerServiceTest {
     when(config.reconciliationInterval).thenReturn(scallopOption(Some(ReconciliationInterval)))
     when(config.scaleAppsInitialDelay).thenReturn(scallopOption(Some(ScaleAppsDelay)))
     when(config.scaleAppsInterval).thenReturn(scallopOption(Some(ScaleAppsInterval)))
-    when(config.zkFutureTimeout).thenReturn(Timeout(1.second))
+    when(config.zkTimeoutDuration).thenReturn(1.second)
 
     config
   }
@@ -195,7 +192,7 @@ class MarathonSchedulerServiceTest
     val frameworkId = mesos.FrameworkID.newBuilder.setValue("myId").build()
     val mockTimer = mock[Timer]
 
-    frameworkIdUtil = new FrameworkIdUtil(new InMemoryState)
+    frameworkIdUtil = new FrameworkIdUtil(new InMemoryStore)
 
     val schedulerService = new MarathonSchedulerService(
       healthCheckManager,
@@ -216,7 +213,7 @@ class MarathonSchedulerServiceTest
 
     schedulerService.frameworkId should be(None)
 
-    implicit lazy val timeout = Timeout(1.second)
+    implicit lazy val timeout = 1.second
     frameworkIdUtil.store(frameworkId)
 
     awaitAssert(schedulerService.frameworkId should be(Some(frameworkId)))

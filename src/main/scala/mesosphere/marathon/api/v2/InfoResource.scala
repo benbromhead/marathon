@@ -41,7 +41,7 @@ class InfoResource @Inject() (
     "zk_hosts" -> conf.zkHosts,
     "zk_path" -> conf.zkPath,
     "zk_timeout" -> conf.zkTimeoutDuration,
-    "zk_future_timeout" -> conf.zkFutureTimeout)
+    "zk_future_timeout" -> conf.zkTimeoutDuration)
 
   private[this] lazy val eventHandlerConfigValues = {
     def httpEventConfig: Map[String, Option[Seq[String]]] = Map(
