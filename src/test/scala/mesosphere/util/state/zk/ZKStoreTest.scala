@@ -2,20 +2,16 @@ package mesosphere.util.state.zk
 
 import java.io.File
 
-import com.twitter.logging
-import com.twitter.logging.config
 import com.twitter.zk.ZkClient
-import mesosphere.marathon.{ StoreCommandFailedException, Protos }
-import mesosphere.marathon.integration.setup.{ ProcessKeeper, IntegrationTestConfig, SingleMarathonIntegrationTest, IntegrationFunSuite }
-import mesosphere.marathon.state.Group
+import mesosphere.marathon.StoreCommandFailedException
+import mesosphere.marathon.integration.setup.{ IntegrationFunSuite, IntegrationTestConfig, ProcessKeeper }
 import mesosphere.util.state.PersistentEntity
 import org.apache.commons.io.FileUtils
-import org.apache.commons.net.util.Base64
 import org.apache.zookeeper.ZooDefs.Ids
 import org.scalatest._
 import org.scalatest.concurrent.ScalaFutures._
+
 import scala.collection.JavaConverters._
-import scala.concurrent.Future
 
 class ZKStoreTest extends IntegrationFunSuite with BeforeAndAfterAll with BeforeAndAfter with Matchers {
 

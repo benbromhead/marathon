@@ -98,7 +98,7 @@ class MarathonModule(conf: MarathonConf, http: HttpConf, zk: ZooKeeperClient)
     implicit val timer = com.twitter.util.Timer.Nil
     import com.twitter.util.TimeConversions._
     //TODO: make hard coded values configurable
-    val connector = NativeConnector(conf.zkHosts, 5.minutes, 30.minutes, conf.zooKeeperAuth)
+    val connector = NativeConnector(conf.zkHosts, None, 30.minutes, timer, conf.zooKeeperAuth)
     val client = ZkClient(connector)
       .withAcl(Ids.OPEN_ACL_UNSAFE.asScala)
       .withRetries(3)
